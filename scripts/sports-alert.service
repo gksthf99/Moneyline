@@ -1,0 +1,16 @@
+[Unit]
+Description=Sports Polymarket Alert Agent (game-aware, 1hr pre-game window)
+After=network.target
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=/opt/sports_polymarket
+ExecStart=/usr/bin/python3 -m src.agents.alert_agent daemon 900
+Restart=on-failure
+RestartSec=30
+StandardOutput=append:/opt/sports_polymarket/logs/alert_daemon.log
+StandardError=append:/opt/sports_polymarket/logs/alert_daemon.log
+
+[Install]
+WantedBy=multi-user.target
