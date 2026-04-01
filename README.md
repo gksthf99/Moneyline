@@ -2,7 +2,7 @@
 
 An automated sports prediction and trading system that identifies mispriced moneyline markets on [Polymarket](https://polymarket.com) for NBA and NHL games. The system runs a multi-layered probabilistic model, finds edges against market-implied probabilities, and executes trades via the Polymarket CLOB API.
 
-**Status:** Shelved (April 2026). The system ran live for ~2 weeks, grading 217 games at a **0.2078 Brier score** and settling 31 trades for **+$15.81 P&L** on a ~$37 bankroll (~42% return).
+**Status:** Shelved (April 2026). The system ran live for ~2 weeks, grading 217 games at a **0.2078 Brier score** and settling 31 trades at an **18W-13L record** (58.1% win rate).
 
 ---
 
@@ -246,7 +246,7 @@ Position sizes are determined by the Kelly criterion for binary markets:
 Kelly_Fraction = (Model_Prob - Ask) / (1 - Ask)
 ```
 
-Where `(1 - Ask) / Ask` represents the net odds (profit per dollar risked on a Polymarket binary that pays $1).
+Where `(1 - Ask) / Ask` represents the net odds (profit per unit risked on a Polymarket binary that pays 1.00 on win).
 
 **Fractional Kelly:** The system uses 1/4 Kelly for conservative sizing:
 
@@ -390,7 +390,7 @@ Core tables:
 
 ### VPS (Hetzner CX23, Helsinki)
 
-- Ubuntu 24.04, $3.29/month
+- Ubuntu 24.04
 - Connected via Tailscale private network (public SSH blocked by UFW)
 - Fresh Polymarket wallet: EOA + Gnosis Safe proxy
 - Polygon RPC for on-chain redemptions
@@ -446,13 +446,9 @@ For context, a Brier score of 0.25 is equivalent to always predicting 50/50 (no 
 |--------|-------|
 | Trades settled | 31 |
 | Record | 18W-13L (58.1%) |
-| Total P&L | **+$15.81** |
-| Average winner | +$3.32 |
-| Average loser | -$2.36 |
-| Win/loss ratio | 1.40x |
-| Return on bankroll | ~42% |
+| Win/loss size ratio | 1.40x (avg winner larger than avg loser) |
 
-The system was profitable despite a modest win rate because winners were larger than losers (positive expected value via Kelly sizing).
+The system was net profitable despite a modest win rate because winners were larger than losers (positive expected value via Kelly sizing).
 
 ### Key Findings
 
@@ -468,13 +464,13 @@ The system was profitable despite a modest win rate because winners were larger 
 
 6. **CLV was negative overall (-40 to -84 bps).** The model was buying at prices slightly worse than closing lines on average. This suggests the market was incorporating the same information the model used, just slightly faster. Despite negative CLV, trades were still profitable because the model's directional accuracy was good enough.
 
-7. **Quarter Kelly kept drawdowns manageable.** Even with a -$3.12 losing day (1W-3L on Mar 25), the bankroll recovered. Full Kelly would have risked ruin on that kind of streak.
+7. **Quarter Kelly kept drawdowns manageable.** Even with a 1W-3L losing day (Mar 25), the bankroll recovered. Full Kelly would have risked ruin on that kind of streak.
 
 ### What Broke
 
 - **Polymarket geoblock** (Mar 20): Local machine trade execution started failing. VPS handled it, but 130 trade attempts from the local research agent were wasted.
 - **Snapshot serialization bug** (Mar 30): A `GameSnapshot.get()` AttributeError caused 0 games analyzed for the final 3 days. The model still computed edges (two-sided edge logs show it working) but couldn't persist results.
-- **Bankroll depletion**: By end of March, the trading wallet was down to $0.01-$2.21, too small for meaningful positions.
+- **Bankroll depletion**: By end of March, the trading wallet balance was too small for meaningful positions.
 
 ---
 
@@ -539,7 +535,7 @@ sports_polymarket/
 - Python 3.12+
 - Supabase project (PostgreSQL)
 - Polymarket wallet (EOA + approved allowances)
-- Non-US VPS for trade execution (Hetzner, ~$3/month)
+- Non-US VPS for trade execution (e.g. Hetzner)
 - Discord server + bot tokens
 
 ### Environment Variables
