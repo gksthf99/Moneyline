@@ -2,7 +2,7 @@
 
 An automated sports prediction and trading system that identifies mispriced moneyline markets on [Polymarket](https://polymarket.com) for NBA and NHL games. The system runs a multi-layered probabilistic model, finds edges against market-implied probabilities, and executes trades via the Polymarket CLOB API.
 
-**Status:** Shelved (April 2026). The system ran live for ~2 weeks, grading 217 games at a **0.2078 Brier score** and settling 31 trades at an **18W-13L record** (58.1% win rate).
+**Status:** Shelved. The system ran live for ~2 weeks, grading 217 games at a **0.2078 Brier score** and settling 31 trades at an **18W-13L record** (58.1% win rate).
 
 ---
 
@@ -129,7 +129,7 @@ P(Home) = 1 / (1 + 10^(-(StrengthHome - StrengthAway + 2.5) * 0.65 / 16.0))
 - **HCA = +2.5 pts** net rating home court advantage
 - **SOS weighting (0.80)** favors strength-of-schedule-adjusted ratings over recent form
 
-Validated on 1,131 NBA games (Oct 2025 - Mar 2026): **Brier 0.2094** vs 0.2219 for the Elo model.
+Validated on 1,131 NBA games (full season backtest): **Brier 0.2094** vs 0.2219 for the Elo model.
 
 #### NHL Enhancements
 
@@ -427,14 +427,14 @@ Three bots posting to dedicated channels:
 
 ## Results & Findings
 
-### Prediction Accuracy (Mar 18 -- Mar 31, 2026)
+### Prediction Accuracy (14-day live window)
 
 | Metric | Value |
 |--------|-------|
 | Games graded | 217 |
 | Overall Brier score | **0.2078** |
-| Best single day | 0.1386 (Mar 27, 12 games) |
-| Worst single day | 0.2517 (Mar 22, 14 games) |
+| Best single day | 0.1386 (12 games) |
+| Worst single day | 0.2517 (14 games) |
 | NBA Brier | ~0.176 |
 | NHL Brier | ~0.240 |
 
@@ -464,13 +464,13 @@ The system was net profitable despite a modest win rate because winners were lar
 
 6. **CLV was negative overall (-40 to -84 bps).** The model was buying at prices slightly worse than closing lines on average. This suggests the market was incorporating the same information the model used, just slightly faster. Despite negative CLV, trades were still profitable because the model's directional accuracy was good enough.
 
-7. **Quarter Kelly kept drawdowns manageable.** Even with a 1W-3L losing day (Mar 25), the bankroll recovered. Full Kelly would have risked ruin on that kind of streak.
+7. **Quarter Kelly kept drawdowns manageable.** Even with a 1W-3L losing day, the bankroll recovered. Full Kelly would have risked ruin on that kind of streak.
 
 ### What Broke
 
-- **Polymarket geoblock** (Mar 20): Local machine trade execution started failing. VPS handled it, but 130 trade attempts from the local research agent were wasted.
-- **Snapshot serialization bug** (Mar 30): A `GameSnapshot.get()` AttributeError caused 0 games analyzed for the final 3 days. The model still computed edges (two-sided edge logs show it working) but couldn't persist results.
-- **Bankroll depletion**: By end of March, the trading wallet balance was too small for meaningful positions.
+- **Polymarket geoblock**: Local machine trade execution started failing. VPS handled it, but 130 trade attempts from the local research agent were wasted.
+- **Snapshot serialization bug**: A `GameSnapshot.get()` AttributeError caused 0 games analyzed for the final 3 days. The model still computed edges (two-sided edge logs show it working) but couldn't persist results.
+- **Bankroll depletion**: The trading wallet balance eventually became too small for meaningful positions.
 
 ---
 
