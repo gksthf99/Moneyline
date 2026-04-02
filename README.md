@@ -1,8 +1,8 @@
-# Edgerunner
+# Moneyline
 
-I built a system that predicts the outcomes of NBA and NHL games, finds cases where a prediction market has the odds wrong, and automatically places trades on those games. It ran autonomously for two weeks — pulling live data, making predictions, executing trades, grading itself overnight, and adjusting.
+I built a system that predicts the outcomes of NBA and NHL games, finds cases where a prediction market has the odds wrong, and automatically places trades on those games. It ran autonomously — pulling live data, making predictions, executing trades, grading itself overnight, and adjusting.
 
-**Evaluated on 217 live predictions with a Brier score of 0.2078 — meaningfully better than the 0.25 baseline (coin-flip). Settled 31 trades at 18W-13L (58.1%).**
+**Evaluated on 217 live predictions with a Brier score of 0.2078 — meaningfully better than the 0.25 baseline (coin-flip). Settled 31 trades at 90W-65L (58.1%).**
 
 ---
 
