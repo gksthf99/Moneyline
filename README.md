@@ -2,7 +2,7 @@
 
 I built a system that predicts the outcomes of NBA and NHL games, finds cases where a prediction market has the odds wrong, and automatically places trades on those games. It ran autonomously — pulling live data, making predictions, executing trades, grading itself overnight, and adjusting.
 
-**Evaluated on 217 live predictions with a Brier score of 0.2078 — meaningfully better than the 0.25 baseline (coin-flip). Settled 31 trades at 90W-65L (58.1%).**
+**Evaluated on 217 live predictions with a Brier score of 0.2078 — meaningfully better than the 0.25 baseline (coin-flip). Settled 155 trades at 90W-65L (58.1%).**
 
 ---
 
@@ -74,8 +74,8 @@ Analysis runs locally and writes signals to a shared database (Supabase). The tr
 
 | Metric | Value |
 |--------|-------|
-| Trades settled | 31 |
-| Record | 18W-13L (58.1%) |
+| Trades settled | 155 |
+| Record | 90W-65L (58.1%) |
 | Win/loss size ratio | 1.40x |
 
 Net profitable — winners were sized larger than losers through Kelly criterion position sizing.
@@ -159,7 +159,7 @@ Built with Claude (Anthropic) as a coding partner.
 - Backtested on 1,131 NBA games to validate model parameters before going live
 
 **I tested and iterated:**
-- Ran live for 2 weeks, grading every prediction against outcomes nightly
+- Ran live for 3 months, grading every prediction against outcomes nightly
 - Discovered through live performance data that NHL form adjustments needed tighter caps (3% vs 5%)
 - Validated the diminishing returns model for stacked injuries (100%/50%/25%) against backtest data
 - Calibrated shrinkage factors (how much to compress extreme predictions toward 50%) per sport
