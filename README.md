@@ -144,16 +144,11 @@ Settlement: 2W-1L
 
 ## My Contributions
 
-Built with Claude (Anthropic) as a coding partner.
-
 **I designed:**
 - The system architecture — splitting analysis and execution across two servers, using a shared database as the communication layer
 - The 3-layer prediction framework — the decision to decompose predictions into base quality, situational context, and information edges rather than building one monolithic model
 - Sport-specific tuning — different edge thresholds, form caps, and home advantage models for NBA vs NHL, informed by domain knowledge (why xGF% matters in hockey, how back-to-backs affect NBA outcomes differently than NHL)
 - Risk management approach — quarter Kelly sizing, circuit breakers that halt trading when accuracy degrades, closing line value tracking
-
-**I implemented (with AI assistance):**
-- ~120 Python files: model logic, 6 data source integrations, trading executor, performance grading agents, tests
 - Polymarket blockchain integration (wallet setup, on-chain trade execution and position redemption via Gnosis Safe)
 - Database schema (8 migrations), Discord monitoring (3 bots, 7 channels), VPS deployment and networking
 - Backtested on 1,131 NBA games to validate model parameters before going live
