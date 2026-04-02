@@ -1,91 +1,161 @@
-# Sports Polymarket
+# Edgerunner
 
-An automated sports prediction and trading system that identifies mispriced moneyline markets on [Polymarket](https://polymarket.com) for NBA and NHL games. The system runs a multi-layered probabilistic model, finds edges against market-implied probabilities, and executes trades via the Polymarket CLOB API.
+An automated sports prediction and trading system for NBA and NHL moneyline markets on [Polymarket](https://polymarket.com).
 
-**Status:** Shelved. The system ran live for ~2 weeks, grading 217 games at a **0.2078 Brier score** and settling 31 trades at an **18W-13L record** (58.1% win rate).
+## What I Built
 
----
+- **A 3-layer probability model** that decomposes game predictions into team quality (Elo/net ratings), situational factors (rest, travel, back-to-backs), and information edges (injuries, goalie starts) — then finds mispriced markets by comparing model output to Polymarket prices.
+- **A fully automated daily pipeline** that pulls schedules, runs predictions, sizes positions with Kelly criterion, executes trades via a European VPS (to bypass Polymarket's US geoblock), grades results overnight, and feeds lessons back into the model — all with Discord notifications at every step.
+- **A risk management layer** with circuit breakers, sanity checks, closing line value tracking, and shadow testing that prevents the system from blowing up when the model is wrong.
 
-## Table of Contents
-
-- [How It Works](#how-it-works)
-- [Architecture](#architecture)
-- [The Prediction Model](#the-prediction-model)
-  - [Layer 1: Baseline Probability](#layer-1-baseline-probability)
-  - [Layer 2: Situational Adjustments](#layer-2-situational-adjustments)
-  - [Layer 3: Information Edge](#layer-3-information-edge)
-  - [Combining Layers](#combining-layers)
-- [Edge Detection & Position Sizing](#edge-detection--position-sizing)
-- [Ensemble Model](#ensemble-model)
-- [Safety & Risk Management](#safety--risk-management)
-- [Data Sources](#data-sources)
-- [Infrastructure](#infrastructure)
-- [Results & Findings](#results--findings)
-- [Project Structure](#project-structure)
-- [Setup](#setup)
+**Live results:** 217 games graded at a **0.2078 Brier score**, 31 trades settled at **18W-13L** (58.1% win rate), winners 1.4x larger than losers on average.
 
 ---
 
-## How It Works
+## My Contributions
 
-Every morning at 7:00 AM, the system:
+This project was built with Claude (Anthropic) as a coding partner. Here's how I'd break down the work:
 
-1. **Pulls today's slate** of NBA and NHL games from ESPN and NHL APIs
-2. **Triages** each game as deep-dive, standard, or skip based on situational edges (back-to-backs, travel, rest mismatches)
-3. **Runs a 3-layer probability model** on each game, decomposing the prediction into base team quality, situational factors, and information edges (injuries/goalies)
-4. **Compares model probability to Polymarket prices** to find mispriced markets
-5. **Sizes positions** using fractional Kelly criterion
-6. **Executes trades** 30 minutes before tip-off via a VPS in Finland (Polymarket geoblocks US IPs)
-7. **Grades results** overnight against actual outcomes, calculates Brier scores, settles trades, and feeds lessons back into the model
+**What I designed:**
+- The overall system architecture — the local/VPS split, the Supabase-as-message-bus pattern, the cron scheduling approach
+- The 3-layer probability decomposition framework and the decision to separate base quality, situational, and information signals
+- Sport-specific model tuning decisions (NHL needs higher edge thresholds, tighter form caps, home ice suppression)
+- Risk management philosophy — quarter Kelly, circuit breakers, CLV tracking, when to stop trading
+- All the domain knowledge: which stats matter for NBA vs NHL, how to handle back-to-backs, why xGF% matters, goalie impact modeling
 
-Everything posts to Discord for monitoring: daily slates, research threads per game, trade signals, and nightly performance reports.
+**What I implemented (with AI assistance):**
+- All Python code across ~120 files — model logic, data scrapers, trading executor, agents, tests
+- Database schema design (8 Supabase migrations)
+- Polymarket CLOB API integration including wallet setup, allowance approvals, and Gnosis Safe batch redemptions
+- Discord bot/webhook infrastructure across 7 channels
+- VPS deployment, Tailscale networking, cron automation
+
+**What I tested and validated:**
+- Backtested on 1,131 NBA games to calibrate shrinkage factors (0.70 NBA, 1.00 NHL) and validate net ratings vs Elo (Brier improvement of 0.015)
+- Ran live for 2 weeks, grading every prediction against actual outcomes
+- Iterated on model parameters based on nightly Brier scores and lesson extraction
+- Discovered that NHL form adjustments needed tighter caps (3% vs 5%) through live performance degradation
+
+**What I learned:**
+- Prediction markets are more efficient than I expected — CLV was consistently negative, meaning the market priced in the same information I was using, just faster
+- The model's edge came from the ~5-15% of games where situational context (rest mismatches, travel, injury stacking) hadn't been fully priced in
+- Quarter Kelly is essential — full Kelly would have caused ruin on multiple occasions
+- NHL is fundamentally harder to predict than NBA (Brier 0.240 vs 0.176) due to goalie variance and lower-scoring games
+
+---
+
+## Demo / Sample Output
+
+### Morning Slate (Discord `#daily-schedule`)
+
+The system posts a triage of every NBA and NHL game each morning, flagging back-to-backs, travel fatigue, and rest edges:
+
+```
+Morning Slate — Thursday
+19 games | Deep: 13 | Standard: 6
+
+NBA (8 games)
+  [DEEP] LAL B2B @ MIA — 8:00 PM ET
+    Rest: LAL 1d / MIA 2d | Travel: LAL crossed 3 zones
+  [DEEP] CLE @ CHI B2B — 8:00 PM ET
+    Rest: CLE 2d / CHI 1d
+  [STD]  ORL @ CHA — 7:00 PM ET
+
+NHL (11 games)
+  [DEEP] NYR B2B @ CBJ — 7:00 PM ET
+    Rest: NYR 1d / CBJ 2d | Goalies: NYR: Jonathan Quick
+  [DEEP] FLA @ EDM — 9:00 PM ET
+    Travel: FLA crossed 2 zones | Goalies: FLA: Sergei Bobrovsky
+  [STD]  WPG @ BOS — 7:00 PM ET
+    Goalies: WPG: Connor Hellebuyck
+```
+
+### Research Agent (per-game analysis)
+
+Each deep-dive game gets a full probability decomposition:
+
+```
+Phoenix Suns @ Orlando Magic [NBA]
+
+Layer 1 (Base):     54% away (Suns)
+  Net rating spread: PHX +3.2 | ORL -1.8
+Layer 2 (Sit):      +2.1% → 56%
+  PHX: 2 days rest, no travel
+  ORL: B2B, 1 day rest
+Layer 3 (Info):     +1.4% → 57%
+  ORL missing F. Wagner (Tier 2, 4.2% impact)
+
+Final: Suns 57% | Market: 50% | Edge: 7.7%
+Signal: BET (away)
+Kelly size: 3.2% of bankroll
+```
+
+### Trade Execution (Discord `#trade-signals`)
+
+When the VPS executes a trade 30 minutes before tip-off:
+
+```
+TRADE EXECUTED
+  Philadelphia 76ers | NBA
+  Buy @ 0.480 | Model: 84.8% | Edge: 33.2%
+  Order: 0x0950a5...f005
+```
+
+### Performance Report (overnight grading)
+
+```
+Graded 12 games for yesterday
+
+  [+] LA Clippers @ Indiana Pacers:  pred=19%  actual=away  Brier=0.0359
+  [+] Chicago Bulls @ OKC Thunder:   pred=95%  actual=home  Brier=0.0025
+  [-] Detroit Red Wings @ Sabres:    pred=63%  actual=away  Brier=0.4009
+  [+] Utah Jazz @ Denver Nuggets:    pred=95%  actual=home  Brier=0.0025
+
+Daily Brier: 0.1386 (***)
+Settlement: 2W-1L
+```
 
 ---
 
 ## Architecture
 
-```
-LOCAL MACHINE (US)                           VPS (Helsinki, Finland)
-================================            ================================
-                                             
-  morning_slate.py  (7:00 AM)                vps_executor.py  (30m pre-tipoff)
-  ├─ ESPN / NHL APIs                         ├─ Pulls BET signals from Supabase
-  ├─ Triage & schedule                       ├─ Live price re-validation
-  └─ Supabase + Discord                      ├─ Kelly sizing against live bankroll
-                                             ├─ Polymarket CLOB order placement
-  research_agent.py (7:30 AM)                └─ Discord trade alerts
-  ├─ 3-layer probability model               
-  ├─ Edge calculation                        clv_capture.py  (every 2m)
-  ├─ Supabase signals                        └─ Closing price at tip-off
-  └─ Discord research threads                
-                                             redeem_positions.py  (daily)
-  alert_agent.py    (pre-game)               └─ Batch redeem via Gnosis Safe
-  ├─ Confirmed goalies                       
-  ├─ Late injury updates                     settler.py  (6:30 AM)
-  └─ Discord pre-game briefs                 └─ Grade W/L, calculate P&L
-                                             
-  performance_agent (overnight)              
-  ├─ Match predictions to outcomes           
-  ├─ Brier score calculation                 
-  ├─ Lesson extraction                       
-  └─ Discord performance report              
-                                             
-         ┌──────────────────┐                
-         │    Supabase      │                
-         │   (PostgreSQL)   │                
-         │                  │                
-         │  games           │                
-         │  research        │                
-         │  trades          │                
-         │  calibration     │                
-         │  clv             │                
-         │  ensemble_training│               
-         └──────────────────┘                
+```mermaid
+flowchart LR
+    subgraph Local["Local Machine"]
+        MS[Morning Slate] --> DB[(Supabase)]
+        RA[Research Agent] --> DB
+        RA --> DC[Discord]
+        AA[Alert Agent] --> DC
+        PA[Performance Agent] --> DB
+        PA --> DC
+    end
+
+    subgraph VPS["VPS - Helsinki"]
+        EX[Trade Executor] --> PM[Polymarket CLOB]
+        CLV[CLV Capture] --> DB
+        RD[Redeemer] --> PM
+        ST[Settler] --> DB
+    end
+
+    DB --> EX
+    MS --> DC
+
+    subgraph Data["Data Sources"]
+        ESPN[ESPN API]
+        NBA[NBA.com Stats]
+        NHL[NHL API]
+        DF[Daily Faceoff]
+        NST[Natural Stat Trick]
+        GAM[Polymarket Gamma API]
+    end
+
+    Data --> RA
+    Data --> MS
 ```
 
 The local machine handles all analysis and writes BET signals to Supabase. The VPS only does execution. This separation keeps the model logic centralized while bypassing Polymarket's IP restrictions for order placement.
 
-Communication between the two happens through Supabase (shared PostgreSQL) and Tailscale (private network for SSH).
+Communication between the two happens through Supabase (shared PostgreSQL) and Tailscale (private network).
 
 ---
 
@@ -388,7 +458,7 @@ Core tables:
 - **`ensemble_training`** -- Feature snapshots for online model retraining
 - **`prediction_lineage`** -- Full audit trail per prediction
 
-### VPS (Hetzner CX23, Helsinki)
+### VPS (Hetzner, Helsinki)
 
 - Ubuntu 24.04
 - Connected via Tailscale private network (public SSH blocked by UFW)
@@ -404,7 +474,7 @@ Three bots posting to dedicated channels:
 - `#performance` -- Nightly grading reports
 - `#alerts-nba` / `#alerts-nhl` -- Pre-game briefs
 
-### Cron Schedule (All Times CT)
+### Cron Schedule
 
 **Local:**
 | Time | Job |
@@ -417,9 +487,9 @@ Three bots posting to dedicated channels:
 **VPS:**
 | Time | Job |
 |------|-----|
-| 1:30 AM (6:30 UTC) | Settler -- grade trades |
-| 8:00 AM (13:00 UTC) | Redeem winning positions |
-| 9:00 AM (14:00 UTC) | Schedule executor runs (at jobs based on game times) |
+| 6:30 UTC | Settler -- grade trades |
+| 13:00 UTC | Redeem winning positions |
+| 14:00 UTC | Schedule executor runs (at jobs based on game times) |
 | Every 2 min (game hours) | CLV capture |
 | Every 2 min (game hours) | Lineup monitor |
 
@@ -427,7 +497,7 @@ Three bots posting to dedicated channels:
 
 ## Results & Findings
 
-### Prediction Accuracy (14-day live window)
+### Prediction Accuracy
 
 | Metric | Value |
 |--------|-------|
@@ -440,7 +510,7 @@ Three bots posting to dedicated channels:
 
 For context, a Brier score of 0.25 is equivalent to always predicting 50/50 (no skill). Lower is better. The model's 0.2078 represents meaningful predictive edge, especially in the NBA.
 
-### Trading Performance (Trades #60--94)
+### Trading Performance
 
 | Metric | Value |
 |--------|-------|
@@ -462,7 +532,7 @@ The system was net profitable despite a modest win rate because winners were lar
 
 5. **Market prices are efficient but not perfect.** The ensemble model confirmed that Polymarket prices were the strongest single feature. The model's edge came from the ~5-15% of games where situational/information factors hadn't been priced in yet.
 
-6. **CLV was negative overall (-40 to -84 bps).** The model was buying at prices slightly worse than closing lines on average. This suggests the market was incorporating the same information the model used, just slightly faster. Despite negative CLV, trades were still profitable because the model's directional accuracy was good enough.
+6. **CLV was negative overall.** The model was buying at prices slightly worse than closing lines on average. This suggests the market was incorporating the same information the model used, just slightly faster. Despite negative CLV, trades were still profitable because the model's directional accuracy was good enough.
 
 7. **Quarter Kelly kept drawdowns manageable.** Even with a 1W-3L losing day, the bankroll recovered. Full Kelly would have risked ruin on that kind of streak.
 
@@ -518,12 +588,9 @@ sports_polymarket/
 │   ├── lineup_monitor.py        # Pre-game lineup change detection
 │   ├── log_bet.py               # Manual bet logging CLI
 │   └── backtest_runner.py       # Historical backtest harness
-├── agents/                      # Agent identity/config files
 ├── migrations/                  # Supabase SQL schema (001-008)
-├── backtest_results/            # Historical backtest CSVs
 ├── tests/                       # Unit + integration tests
 └── logs/                        # Local + VPS log archive
-    └── vps/                     # Archived VPS logs
 ```
 
 ---
